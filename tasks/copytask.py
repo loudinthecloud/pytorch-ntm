@@ -1,0 +1,240 @@
+"""Copy Task NTM model."""
+from attr import attrs, attrib, Factory
+import torch
+from torch import nn
+from torch.autograd import Variable
+from torch import optim
+import random
+import numpy as np
+
+from ntm.controller import LSTMController
+from ntm.memory import NTMMemory
+from ntm.head import NTMReadHead, NTMWriteHead
+from ntm.ntm import NTM
+
+
+# Encapsulation of the various NTM components for the Copy task
+class CopyTaskNTM(nn.Module):
+
+    def __init__(self, num_inputs, num_outputs, controller_size, controller_layers, N, M):
+        """Initialize an CopyTaskNTM.
+
+        :param num_inputs: External number of inputs.
+        :param num_outputs: External number of outputs.
+        :param controller_size: The size of the internal representation.
+        :param controller_layers: Number of controller layers.
+        :param N: Number of rows in the memory bank.
+        :param M: Number of cols/features in the memory bank.
+        """
+        super(CopyTaskNTM, self).__init__()
+
+        # Save args
+        self.num_inputs = num_inputs
+        self.num_outputs = num_outputs
+        self.controller_size = controller_size
+        self.N = N
+        self.M = M
+
+        # Create the NTM components
+        memory = NTMMemory(N, M)
+        heads = nn.ModuleList([
+            NTMReadHead(memory, controller_size),
+            NTMWriteHead(memory, controller_size)
+        ])
+        controller = LSTMController(num_inputs + M, controller_size, controller_layers)
+        self.ntm = NTM(num_inputs, num_outputs, controller, memory, heads)
+        self.memory = memory
+
+    def init_sequence(self, batch_size):
+        """Initializing the state."""
+        self.batch_size = batch_size
+        self.memory.reset(batch_size)
+        self.previous_state = self.ntm.create_new_state(batch_size)
+
+    def forward(self, x=None):
+        if x is None:
+            x = Variable(torch.zeros(self.batch_size, self.num_inputs))
+
+        o, self.previous_state = self.ntm(x, self.previous_state)
+        return o, self.previous_state
+
+    def calculate_num_params(self):
+        """Returns the total number of parameters."""
+        num_params = 0
+        for p in self.parameters():
+            num_params += p.data.view(-1).size(0)
+        return num_params
+
+
+# Generator of randomized test sequences
+def dataloader(num_batches,
+               batch_size,
+               seq_width,
+               min_len,
+               max_len):
+    """Generator of random sequences for the copy task.
+
+    Creates random batches of "bits" sequences.
+
+    All the sequences within each batch have the same length.
+    The length is [`min_len`, `max_len`]
+
+    :param num_batches: Total number of batches to generate.
+    :param seq_width: The width of each item in the sequence.
+    :param batch_size: Batch size.
+    :param min_len: Sequence minimum length.
+    :param max_len: Sequence maximum length.
+
+    NOTE: The input width is `seq_width + 1`, the additional input
+    contain the delimiter.
+    """
+    for batch_num in range(num_batches):
+
+        # All batches have the same sequence length
+        seq_len = random.randint(min_len, max_len)
+        seq = np.random.binomial(1, 0.5, (seq_len, batch_size, seq_width))
+        seq = Variable(torch.from_numpy(seq))
+
+        # The input includes an additional channel used for the delimiter
+        inp = Variable(torch.zeros(seq_len + 1, batch_size, seq_width + 1))
+        inp[:seq_len, :, :seq_width] = seq
+        inp[seq_len, :, seq_width] = 1.0 # delimiter in our control channel
+        outp = seq.clone()
+
+        yield batch_num+1, inp.float(), outp.float()
+
+
+def train_batch(net, criterion, optimizer, X, Y):
+    """Trains a single batch."""
+    optimizer.zero_grad()
+    seq_len, batch_size, _ = Y.size()
+
+    # New sequence
+    net.init_sequence(batch_size)
+
+    # Feed the sequence + delimiter
+    for i in range(seq_len+1):
+        net(X[i])
+
+    # Read the output (no input given)
+    y_out = Variable(torch.zeros(Y.size()))
+    for i in range(seq_len):
+        y_out[i], _ = net()
+
+    loss = criterion(y_out, Y)
+    loss.backward()
+    optimizer.step()
+
+    y_out_binarized = y_out.clone().data
+    y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
+
+    # The cost is the number of error bits per sequence
+    cost = torch.sum(torch.abs(y_out_binarized - Y.data))
+
+    return loss.data[0], cost / batch_size
+
+
+def evaluate(net, criterion, X, Y):
+    """Evaluate a single batch (without training)."""
+    seq_len, batch_size, _ = Y.size()
+
+    # New sequence
+    net.init_sequence(batch_size)
+
+    # Feed the sequence + delimiter
+    for i in range(seq_len+1):
+        o, _ = net(X[i])
+
+    # Read the output (no input given)
+    states = []
+    y_out = Variable(torch.zeros(Y.size()))
+    for i in range(seq_len):
+        y_out[i], state = net()
+        states += [state]
+
+    loss = criterion(y_out, Y)
+
+    y_out_binarized = y_out.clone().data
+    y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
+
+    # The cost is the number of error bits per sequence
+    cost = torch.sum(torch.abs(y_out_binarized - Y.data))
+
+    result = {
+        'loss': loss.data[0],
+        'cost': cost / batch_size,
+        'y_out': y_out,
+        'y_out_binarized': y_out_binarized,
+        'states': states
+    }
+
+    return result
+
+
+@attrs
+class CopyTaskParams(object):
+    name = attrib(default="copy-task")
+    controller_size = attrib(default=100)
+    controller_layers = attrib(default=1)
+    sequence_width = attrib(default=8)
+    sequence_min_len = attrib(default=1)
+    sequence_max_len = attrib(default=20)
+    memory_n = attrib(default=128)
+    memory_m = attrib(default=20)
+    num_batches = attrib(default=50000)
+    batch_size = attrib(default=1)
+    rmsprop_lr = attrib(default=1e-4)
+    rmsprop_momentum = attrib(default=0.9)
+    rmsprop_alpha = attrib(default=0.95)
+
+
+#
+# To create a network simply instantiate the `:class:CopyTaskModelTraining`,
+# all the components will be wired with the default values.
+# In case you'd like to change any of defaults, do the following:
+#
+# > params = CopyTaskParams(batch_size=4)
+# > model = CopyTaskModelTraining(params=params)
+#
+# Then use `model.net`, `model.optimizer` and `model.criterion` to train the
+# network. Call `model.train_batch` for training and `model.evaluate`
+# for evaluating.
+#
+# You may skip this alltogether, and use `:class:CopyTaskNTM` directly.
+#
+
+@attrs
+class CopyTaskModelTraining(object):
+    params = attrib(default=Factory(CopyTaskParams))
+    train_batch = attrib(default=train_batch)
+    evaluate = attrib(default=evaluate)
+    net = attrib()
+    dataloader = attrib()
+    criterion = attrib()
+    optimizer = attrib()
+
+    @net.default
+    def default_net(self):
+        # We have 1 additional input for the delimiter which is passed on a
+        # separate "control" channel
+        net = CopyTaskNTM(self.params.sequence_width + 1, self.params.sequence_width,
+                          self.params.controller_size, self.params.controller_layers,
+                          self.params.memory_n, self.params.memory_m)
+        return net
+
+    @dataloader.default
+    def default_dataloader(self):
+        return dataloader(self.params.num_batches, self.params.batch_size,
+                          self.params.sequence_width,
+                          self.params.sequence_min_len, self.params.sequence_max_len)
+
+    @criterion.default
+    def default_criterion(self):
+        return nn.BCELoss()
+
+    @optimizer.default
+    def default_optimizer(self):
+        return optim.RMSprop(self.net.parameters(),
+                             momentum=self.params.rmsprop_momentum,
+                             alpha=self.params.rmsprop_alpha,
+                             lr=self.params.rmsprop_lr)
