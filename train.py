@@ -11,7 +11,11 @@ import argcomplete
 import torch
 import numpy as np
 
-from tasks.copytask import CopyTaskModelTraining
+from tasks.copytask import CopyTaskModelTraining, CopyTaskParams
+
+TASKS = {
+    'copy': (CopyTaskModelTraining, CopyTaskParams),
+}
 
 
 # Default values for program arguments
@@ -112,6 +116,8 @@ def train_model(model,
 def init_arguments():
     parser = argparse.ArgumentParser(prog='train.py')
     parser.add_argument('--seed', type=int, default=RANDOM_SEED, help="Seed value for RNGs")
+    parser.add_argument('--task', action='store', choices=list(TASKS.keys()), default='copy',
+                        help="Choose the task's model to train (default: copy)")
     parser.add_argument('--checkpoint_interval', type=int, default=CHECKPOINT_INTERVAL,
                         help="Checkpoint interval (in batches). 0 - disable")
     parser.add_argument('--report_interval', type=int, default=REPORT_INTERVAL,
@@ -123,6 +129,14 @@ def init_arguments():
     return args
 
 
+def init_model(args):
+    print("Training for the **{}** task".format(args.task))
+    model_cls, params_cls = TASKS[args.task]
+    params = params_cls()
+    model = model_cls(params=params)
+    return model
+
+
 def main():
     # Initialize arguments
     args = init_arguments()
@@ -131,7 +145,7 @@ def main():
     init_seed(args.seed)
 
     # Initialize the model
-    model = CopyTaskModelTraining()
+    model = init_model(args)
 
     print("Total number of parameters: {}".format(model.net.calculate_num_params()))
     train_model(model, args)
