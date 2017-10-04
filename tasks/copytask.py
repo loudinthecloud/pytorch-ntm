@@ -7,63 +7,7 @@ from torch import optim
 import random
 import numpy as np
 
-from ntm.controller import LSTMController
-from ntm.memory import NTMMemory
-from ntm.head import NTMReadHead, NTMWriteHead
-from ntm.ntm import NTM
-
-
-# Encapsulation of the various NTM components for the Copy task
-class CopyTaskNTM(nn.Module):
-
-    def __init__(self, num_inputs, num_outputs, controller_size, controller_layers, N, M):
-        """Initialize an CopyTaskNTM.
-
-        :param num_inputs: External number of inputs.
-        :param num_outputs: External number of outputs.
-        :param controller_size: The size of the internal representation.
-        :param controller_layers: Number of controller layers.
-        :param N: Number of rows in the memory bank.
-        :param M: Number of cols/features in the memory bank.
-        """
-        super(CopyTaskNTM, self).__init__()
-
-        # Save args
-        self.num_inputs = num_inputs
-        self.num_outputs = num_outputs
-        self.controller_size = controller_size
-        self.N = N
-        self.M = M
-
-        # Create the NTM components
-        memory = NTMMemory(N, M)
-        heads = nn.ModuleList([
-            NTMReadHead(memory, controller_size),
-            NTMWriteHead(memory, controller_size)
-        ])
-        controller = LSTMController(num_inputs + M, controller_size, controller_layers)
-        self.ntm = NTM(num_inputs, num_outputs, controller, memory, heads)
-        self.memory = memory
-
-    def init_sequence(self, batch_size):
-        """Initializing the state."""
-        self.batch_size = batch_size
-        self.memory.reset(batch_size)
-        self.previous_state = self.ntm.create_new_state(batch_size)
-
-    def forward(self, x=None):
-        if x is None:
-            x = Variable(torch.zeros(self.batch_size, self.num_inputs))
-
-        o, self.previous_state = self.ntm(x, self.previous_state)
-        return o, self.previous_state
-
-    def calculate_num_params(self):
-        """Returns the total number of parameters."""
-        num_params = 0
-        for p in self.parameters():
-            num_params += p.data.view(-1).size(0)
-        return num_params
+from ntm.aio import EncapsulatedNTM
 
 
 # Generator of randomized test sequences
@@ -176,6 +120,7 @@ class CopyTaskParams(object):
     name = attrib(default="copy-task")
     controller_size = attrib(default=100)
     controller_layers = attrib(default=1)
+    num_heads = attrib(default=1)
     sequence_width = attrib(default=8)
     sequence_min_len = attrib(default=1)
     sequence_max_len = attrib(default=20)
@@ -217,9 +162,10 @@ class CopyTaskModelTraining(object):
     def default_net(self):
         # We have 1 additional input for the delimiter which is passed on a
         # separate "control" channel
-        net = CopyTaskNTM(self.params.sequence_width + 1, self.params.sequence_width,
-                          self.params.controller_size, self.params.controller_layers,
-                          self.params.memory_n, self.params.memory_m)
+        net = EncapsulatedNTM(self.params.sequence_width + 1, self.params.sequence_width,
+                              self.params.controller_size, self.params.controller_layers,
+                              self.params.num_heads,
+                              self.params.memory_n, self.params.memory_m)
         return net
 
     @dataloader.default
