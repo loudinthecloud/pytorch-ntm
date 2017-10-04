@@ -53,10 +53,10 @@ def progress_bar(batch_num, report_interval, last_loss):
         "=" * fill, " " * (40 - fill), batch_num, last_loss), end='')
 
 
-def save_checkpoint(net, name, seed, batch_num, losses, costs, seq_lengths):
+def save_checkpoint(net, name, args, batch_num, losses, costs, seq_lengths):
     progress_clean()
 
-    basename = "./{}-{}-batch-{}".format(name, seed, batch_num)
+    basename = "{}/{}-{}-batch-{}".format(args.checkpoint_path, name, args.seed, batch_num)
     model_fname = basename + ".model"
     print("Saving model checkpoint to: '{}'".format(model_fname))
     torch.save(net.state_dict(), model_fname)
@@ -107,7 +107,7 @@ def train_model(model,
 
         # Checkpoint
         if (args.checkpoint_interval != 0) and (batch_num % args.checkpoint_interval == 0):
-            save_checkpoint(model.net, model.params.name, args.seed,
+            save_checkpoint(model.net, model.params.name, args,
                             batch_num, losses, costs, seq_lengths)
 
     print("Done training.")
@@ -120,12 +120,16 @@ def init_arguments():
                         help="Choose the task's model to train (default: copy)")
     parser.add_argument('--checkpoint_interval', type=int, default=CHECKPOINT_INTERVAL,
                         help="Checkpoint interval (in batches). 0 - disable")
+    parser.add_argument('--checkpoint_path', action='store', default='./',
+                        help="Out directory for checkpoint data (default: './')")
     parser.add_argument('--report_interval', type=int, default=REPORT_INTERVAL,
                         help="Report interval (in batches)")
 
     argcomplete.autocomplete(parser)
 
     args = parser.parse_args()
+    args.checkpoint_path = args.checkpoint_path.rstrip('/')
+
     return args
 
 
