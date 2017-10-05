@@ -4,12 +4,17 @@
 
 import argparse
 import json
+import logging
 import time
 import random
 
 import argcomplete
 import torch
 import numpy as np
+
+
+LOGGER = logging.getLogger(__name__)
+
 
 from tasks.copytask import CopyTaskModelTraining, CopyTaskParams
 
@@ -34,7 +39,7 @@ def init_seed(seed=None):
     if seed is None:
         seed = int(get_ms() // 1000)
 
-    print("Using seed={}".format(seed))
+    LOGGER.info("Using seed=%d", seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     random.seed(seed)
@@ -58,12 +63,12 @@ def save_checkpoint(net, name, args, batch_num, losses, costs, seq_lengths):
 
     basename = "{}/{}-{}-batch-{}".format(args.checkpoint_path, name, args.seed, batch_num)
     model_fname = basename + ".model"
-    print("Saving model checkpoint to: '{}'".format(model_fname))
+    LOGGER.info("Saving model checkpoint to: '%s'", model_fname)
     torch.save(net.state_dict(), model_fname)
 
     # Save the training history
     train_fname = basename + ".json"
-    print("Saving model training history to '{}'".format(train_fname))
+    LOGGER.info("Saving model training history to '%s'", train_fname)
     content = {
         "loss": losses,
         "cost": costs,
@@ -78,8 +83,8 @@ def train_model(model,
     num_batches = model.params.num_batches
     batch_size = model.params.batch_size
 
-    print("Training model for {} batches (batch_size={})...".format(
-        num_batches, batch_size))
+    LOGGER.info("Training model for %d batches (batch_size=%d)...",
+                num_batches, batch_size)
 
     losses = []
     costs = []
@@ -101,8 +106,8 @@ def train_model(model,
             mean_cost = np.array(costs[-args.report_interval:]).mean()
             mean_time = int(((get_ms() - start_ms) / args.report_interval) / batch_size)
             progress_clean()
-            print("Batch {} Loss: {:.6f} Cost: {:.2f} Time: {} ms/sequence".format(
-                batch_num, mean_loss, mean_cost, mean_time))
+            LOGGER.info("Batch %d Loss: %.6f Cost: %.2f Time: %d ms/sequence",
+                        batch_num, mean_loss, mean_cost, mean_time)
             start_ms = get_ms()
 
         # Checkpoint
@@ -110,7 +115,7 @@ def train_model(model,
             save_checkpoint(model.net, model.params.name, args,
                             batch_num, losses, costs, seq_lengths)
 
-    print("Done training.")
+    LOGGER.info("Done training.")
 
 
 def init_arguments():
@@ -136,20 +141,28 @@ def init_arguments():
 
 
 def init_model(args):
-    print("Training for the **{}** task".format(args.task))
+    LOGGER.info("Training for the **%s** task", args.task)
+
     model_cls, params_cls = TASKS[args.task]
     params = params_cls()
     model = model_cls(params=params)
     return model
 
 
+def init_logging():
+    logging.basicConfig(format='[%(asctime)s] [%(levelname)s] [%(name)s]  %(message)s',
+                        level=logging.DEBUG)
+
+
 def main():
+    init_logging()
+
     # Initialize arguments
     args = init_arguments()
 
     if args.print_params:
         params_cls = TASKS[args.task][1]
-        print(params_cls())
+        LOGGER.info(params_cls())
         return
 
     # Initialize random
@@ -158,7 +171,7 @@ def main():
     # Initialize the model
     model = init_model(args)
 
-    print("Total number of parameters: {}".format(model.net.calculate_num_params()))
+    LOGGER.info("Total number of parameters: %d", model.net.calculate_num_params())
     train_model(model, args)
 
 
