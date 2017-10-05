@@ -7,7 +7,10 @@ import json
 import logging
 import time
 import random
+import re
+import sys
 
+import attr
 import argcomplete
 import torch
 import numpy as np
@@ -123,6 +126,8 @@ def init_arguments():
     parser.add_argument('--seed', type=int, default=RANDOM_SEED, help="Seed value for RNGs")
     parser.add_argument('--task', action='store', choices=list(TASKS.keys()), default='copy',
                         help="Choose the task's model to train (default: copy)")
+    parser.add_argument('-p', '--param', action='append', default=[],
+                        help='Override model params. Example: "-pbatch_size=4 -pnum_heads=2"')
     parser.add_argument('--checkpoint_interval', type=int, default=CHECKPOINT_INTERVAL,
                         help="Checkpoint interval (in batches). 0 - disable")
     parser.add_argument('--checkpoint_path', action='store', default='./',
@@ -138,13 +143,35 @@ def init_arguments():
     return args
 
 
+def update_model_params(params, update):
+    """Updates the default parameters using supplied user arguments."""
+
+    update_dict = {}
+    for p in update:
+        m = re.match("(.*)=(.*)", p)
+        if not m:
+            LOGGER.error("Unable to parse param update '%s'", p)
+            sys.exit(1)
+
+        k, v = m.groups()
+        update_dict[k] = v
+
+    try:
+        params = attr.evolve(params, **update_dict)
+    except TypeError as e:
+        LOGGER.error(e)
+        LOGGER.error("Valid parameters: %s", list(attr.asdict(params).keys()))
+        sys.exit(1)
+
+    return params
+
 def init_model(args):
     LOGGER.info("Training for the **%s** task", args.task)
 
     model_cls, params_cls = TASKS[args.task]
     params = params_cls()
+    params = update_model_params(params, args.param)
 
-    # TODO: allow control of parameter values from the command line
     LOGGER.info(params)
 
     model = model_cls(params=params)

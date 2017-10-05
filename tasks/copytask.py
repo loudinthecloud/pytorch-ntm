@@ -118,19 +118,19 @@ def evaluate(net, criterion, X, Y):
 @attrs
 class CopyTaskParams(object):
     name = attrib(default="copy-task")
-    controller_size = attrib(default=100)
-    controller_layers = attrib(default=1)
-    num_heads = attrib(default=1)
-    sequence_width = attrib(default=8)
-    sequence_min_len = attrib(default=1)
-    sequence_max_len = attrib(default=20)
-    memory_n = attrib(default=128)
-    memory_m = attrib(default=20)
-    num_batches = attrib(default=50000)
-    batch_size = attrib(default=1)
-    rmsprop_lr = attrib(default=1e-4)
-    rmsprop_momentum = attrib(default=0.9)
-    rmsprop_alpha = attrib(default=0.95)
+    controller_size = attrib(default=100, convert=int)
+    controller_layers = attrib(default=1,convert=int)
+    num_heads = attrib(default=1, convert=int)
+    sequence_width = attrib(default=8, convert=int)
+    sequence_min_len = attrib(default=1,convert=int)
+    sequence_max_len = attrib(default=20, convert=int)
+    memory_n = attrib(default=128, convert=int)
+    memory_m = attrib(default=20, convert=int)
+    num_batches = attrib(default=50000, convert=int)
+    batch_size = attrib(default=1, convert=int)
+    rmsprop_lr = attrib(default=1e-4, convert=float)
+    rmsprop_momentum = attrib(default=0.9, convert=float)
+    rmsprop_alpha = attrib(default=0.95, convert=float)
 
 
 #
