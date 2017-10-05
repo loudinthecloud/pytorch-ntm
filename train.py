@@ -125,15 +125,15 @@ def init_arguments():
     parser = argparse.ArgumentParser(prog='train.py')
     parser.add_argument('--seed', type=int, default=RANDOM_SEED, help="Seed value for RNGs")
     parser.add_argument('--task', action='store', choices=list(TASKS.keys()), default='copy',
-                        help="Choose the task's model to train (default: copy)")
+                        help="Choose the task to train (default: copy)")
     parser.add_argument('-p', '--param', action='append', default=[],
                         help='Override model params. Example: "-pbatch_size=4 -pnum_heads=2"')
-    parser.add_argument('--checkpoint_interval', type=int, default=CHECKPOINT_INTERVAL,
-                        help="Checkpoint interval (in batches). 0 - disable")
-    parser.add_argument('--checkpoint_path', action='store', default='./',
-                        help="Out directory for checkpoint data (default: './')")
-    parser.add_argument('--report_interval', type=int, default=REPORT_INTERVAL,
-                        help="Report interval (in batches)")
+    parser.add_argument('--checkpoint-interval', type=int, default=CHECKPOINT_INTERVAL,
+                        help="Checkpoint interval (default: {}). Use 0 to disable checkpointing".format(CHECKPOINT_INTERVAL))
+    parser.add_argument('--checkpoint-path', action='store', default='./',
+                        help="Path for saving checkpoint data (default: './')")
+    parser.add_argument('--report-interval', type=int, default=REPORT_INTERVAL,
+                        help="Reporting interval")
 
     argcomplete.autocomplete(parser)
 
