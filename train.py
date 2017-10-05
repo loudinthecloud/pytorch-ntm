@@ -123,8 +123,6 @@ def init_arguments():
     parser.add_argument('--seed', type=int, default=RANDOM_SEED, help="Seed value for RNGs")
     parser.add_argument('--task', action='store', choices=list(TASKS.keys()), default='copy',
                         help="Choose the task's model to train (default: copy)")
-    parser.add_argument('--print-params', action='store_true', default=False,
-                        help="Print the model's default parameters")
     parser.add_argument('--checkpoint_interval', type=int, default=CHECKPOINT_INTERVAL,
                         help="Checkpoint interval (in batches). 0 - disable")
     parser.add_argument('--checkpoint_path', action='store', default='./',
@@ -145,6 +143,10 @@ def init_model(args):
 
     model_cls, params_cls = TASKS[args.task]
     params = params_cls()
+
+    # TODO: allow control of parameter values from the command line
+    LOGGER.info(params)
+
     model = model_cls(params=params)
     return model
 
@@ -159,11 +161,6 @@ def main():
 
     # Initialize arguments
     args = init_arguments()
-
-    if args.print_params:
-        params_cls = TASKS[args.task][1]
-        LOGGER.info(params_cls())
-        return
 
     # Initialize random
     init_seed(args.seed)
