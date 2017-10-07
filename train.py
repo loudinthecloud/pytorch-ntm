@@ -20,9 +20,11 @@ LOGGER = logging.getLogger(__name__)
 
 
 from tasks.copytask import CopyTaskModelTraining, CopyTaskParams
+from tasks.repeatcopytask import RepeatCopyTaskModelTraining, RepeatCopyTaskParams
 
 TASKS = {
     'copy': (CopyTaskModelTraining, CopyTaskParams),
+    'repeat-copy': (RepeatCopyTaskModelTraining, RepeatCopyTaskParams)
 }
 
 
