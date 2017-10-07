@@ -41,12 +41,11 @@ class NTMHeadBase(nn.Module):
         return NotImplementedError
 
     def _address_memory(self, k, β, g, s, γ, w_prev):
-        # Activations
-        k = F.relu(k)
-        β = F.relu(β)
+        # Handle Activations
+        β = F.softplus(β)
         g = F.sigmoid(g)
-        s = F.softmax(F.relu(s))
-        γ = 1 + F.relu(γ)
+        s = F.softmax(F.softplus(s))
+        γ = 1 + F.softplus(γ)
 
         w = self.memory.address(k, β, g, s, γ, w_prev)
 
@@ -119,9 +118,8 @@ class NTMWriteHead(NTMHeadBase):
         o = self.fc_write(embeddings)
         k, β, g, s, γ, e, a = _split_cols(o, self.write_lengths)
 
-        # Handle activations
-        e = F.relu(e)
-        a = F.relu(a)
+        # e should be in [0, 1]
+        e = F.sigmoid(e)
 
         # Write to memory
         w = self._address_memory(k, β, g, s, γ, w_prev)
