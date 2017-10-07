@@ -20,6 +20,8 @@ This repository implements a vanilla NTM in a straight forward way. The followin
 * Flexible head configuration - use X read heads and Y write heads and specify the order of operation
 * **copy** and **repeat-copy** experiments agree with the paper
 
+***
+
 ## Copy Task
 
 The **Copy** task tests the NTM's ability to store and recall a long sequence of arbitrary information. The input to the network is a random sequence of bits, ending with a delimiter. The sequence lengths are randomised between 1 to 20.
@@ -44,6 +46,7 @@ The following is the same, but with `sequence length = 80`. Note that the networ
 
 ![Copy Task](./images/copy-train-80-fast.gif)
 
+***
 ## Repeat Copy Task
 
 The **Repeat Copy** task tests whether the NTM can learn a simple nested function, and invoke it by learning to execute a __for loop__. The input to the network is a random sequence of bits, followed by a delimiter and a scalar value that represents the number of repetitions to output. The number of repetitions, was normalized to have zero mean and variance of one (as in the paper). Both the length of the sequence and the number of repetitions are randomised between 1 to 10.
