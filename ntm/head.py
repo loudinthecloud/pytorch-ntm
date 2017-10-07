@@ -42,6 +42,7 @@ class NTMHeadBase(nn.Module):
 
     def _address_memory(self, k, β, g, s, γ, w_prev):
         # Handle Activations
+        k = k.clone()
         β = F.softplus(β)
         g = F.sigmoid(g)
         s = F.softmax(F.softplus(s))
