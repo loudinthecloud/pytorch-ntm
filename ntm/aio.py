@@ -12,7 +12,8 @@ from .memory import NTMMemory
 class EncapsulatedNTM(nn.Module):
 
     def __init__(self, num_inputs, num_outputs,
-                 controller_size, controller_layers, num_heads, N, M):
+                 controller_size, controller_layers, num_heads, N, M,
+                 is_cuda=False):
         """Initialize an EncapsulatedNTM.
 
         :param num_inputs: External number of inputs.
@@ -22,6 +23,7 @@ class EncapsulatedNTM(nn.Module):
         :param num_heads: Number of heads.
         :param N: Number of rows in the memory bank.
         :param M: Number of cols/features in the memory bank.
+        :param is_cuda: Use GPU.
         """
         super(EncapsulatedNTM, self).__init__()
 
@@ -33,9 +35,10 @@ class EncapsulatedNTM(nn.Module):
         self.num_heads = num_heads
         self.N = N
         self.M = M
+        self.is_cuda = is_cuda
 
         # Create the NTM components
-        memory = NTMMemory(N, M)
+        memory = NTMMemory(N, M, is_cuda)
         controller = LSTMController(num_inputs + M*num_heads, controller_size, controller_layers)
         heads = nn.ModuleList([])
         for i in range(num_heads):
@@ -47,15 +50,17 @@ class EncapsulatedNTM(nn.Module):
         self.ntm = NTM(num_inputs, num_outputs, controller, memory, heads)
         self.memory = memory
 
-    def init_sequence(self, batch_size):
+    def init_sequence(self, batch_size, is_cuda=False):
         """Initializing the state."""
         self.batch_size = batch_size
         self.memory.reset(batch_size)
-        self.previous_state = self.ntm.create_new_state(batch_size)
+        self.previous_state = self.ntm.create_new_state(batch_size, is_cuda)
 
     def forward(self, x=None):
         if x is None:
             x = Variable(torch.zeros(self.batch_size, self.num_inputs))
+            if self.is_cuda:
+                x = x.cuda()
 
         o, self.previous_state = self.ntm(x, self.previous_state)
         return o, self.previous_state

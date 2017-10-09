@@ -62,9 +62,13 @@ class NTMReadHead(NTMHeadBase):
         self.fc_read = nn.Linear(controller_size, sum(self.read_lengths))
         self.reset_parameters()
 
-    def create_new_state(self, batch_size):
+    def create_new_state(self, batch_size, is_cuda=False):
         # The state holds the previous time step address weightings
-        return Variable(torch.zeros(batch_size, self.N))
+        w_prev = Variable(torch.zeros(batch_size, self.N))
+        if is_cuda:
+            w_prev = w_prev.cuda()
+
+        return w_prev
 
     def reset_parameters(self):
         # Initialize the linear layers
@@ -99,8 +103,12 @@ class NTMWriteHead(NTMHeadBase):
         self.fc_write = nn.Linear(controller_size, sum(self.write_lengths))
         self.reset_parameters()
 
-    def create_new_state(self, batch_size):
-        return Variable(torch.zeros(batch_size, self.N))
+    def create_new_state(self, batch_size, is_cuda=False):
+        w_prev = Variable(torch.zeros(batch_size, self.N))
+        if is_cuda:
+            w_prev = w_prev.cuda()
+
+        return w_prev
 
     def reset_parameters(self):
         # Initialize the linear layers

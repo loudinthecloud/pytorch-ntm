@@ -16,6 +16,10 @@ import torch
 from torch.autograd import Variable
 import numpy as np
 
+import torch
+from torch.autograd import Variable
+from torch.nn.parallel import data_parallel
+
 
 LOGGER = logging.getLogger(__name__)
 
@@ -47,8 +51,10 @@ def init_seed(seed=None):
 
     LOGGER.info("Using seed=%d", seed)
     np.random.seed(seed)
-    torch.manual_seed(seed)
     random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
 
 
 def progress_clean():
@@ -90,30 +96,40 @@ def clip_grads(net):
         p.grad.data.clamp_(-10, 10)
 
 
-def train_batch(net, criterion, optimizer, X, Y):
+def train_batch(net, criterion, optimizer, X, Y, is_cuda):
     """Trains a single batch."""
     optimizer.zero_grad()
     inp_seq_len = X.size(0)
     outp_seq_len, batch_size, _ = Y.size()
 
     # New sequence
-    net.init_sequence(batch_size)
+    net.init_sequence(batch_size, is_cuda)
 
     # Feed the sequence + delimiter
     for i in range(inp_seq_len):
-        net(X[i])
+        if is_cuda:
+            data_parallel(net, X[i])
+        else:
+            net(X[i])
 
     # Read the output (no input given)
-    y_out = Variable(torch.zeros(Y.size()))
+    y_out = []
     for i in range(outp_seq_len):
-        y_out[i], _ = net()
+        if is_cuda:
+            o, _ = data_parallel(net, X[i])
+        else:
+            o, _ = net(X[i])
 
+        y_out += [o]
+
+
+    y_out = torch.cat(y_out, dim=0).unsqueeze(1)
     loss = criterion(y_out, Y)
     loss.backward()
     clip_grads(net)
     optimizer.step()
 
-    y_out_binarized = y_out.clone().data
+    y_out_binarized = y_out.cpu().data
     y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
 
     # The cost is the number of error bits per sequence
@@ -122,7 +138,7 @@ def train_batch(net, criterion, optimizer, X, Y):
     return loss.data[0], cost / batch_size
 
 
-def evaluate(net, criterion, X, Y):
+def UNUSED_evaluate(net, criterion, X, Y):
     """Evaluate a single batch (without training)."""
     inp_seq_len = X.size(0)
     outp_seq_len, batch_size, _ = Y.size()
@@ -174,7 +190,13 @@ def train_model(model, args):
     start_ms = get_ms()
 
     for batch_num, x, y in model.dataloader:
-        loss, cost = train_batch(model.net, model.criterion, model.optimizer, x, y)
+        x = Variable(x)
+        y = Variable(y)
+        if args.cuda:
+            x = x.cuda()
+            y = y.cuda()
+
+        loss, cost = train_batch(model.net, model.criterion, model.optimizer, x, y, args.cuda)
         losses += [loss]
         costs += [cost]
         seq_lengths += [y.size(0)]
@@ -202,6 +224,7 @@ def train_model(model, args):
 
 def init_arguments():
     parser = argparse.ArgumentParser(prog='train.py')
+    parser.add_argument('--cuda', action='store_true', help='Use GPU for training')
     parser.add_argument('--seed', type=int, default=RANDOM_SEED, help="Seed value for RNGs")
     parser.add_argument('--task', action='store', choices=list(TASKS.keys()), default='copy',
                         help="Choose the task to train (default: copy)")
@@ -254,7 +277,8 @@ def init_model(args):
 
     LOGGER.info(params)
 
-    model = model_cls(params=params)
+    model = model_cls(params=params, cuda=args.cuda)
+
     return model
 
 
@@ -268,6 +292,11 @@ def main():
 
     # Initialize arguments
     args = init_arguments()
+
+    # Make sure GPU is present if --cuda used
+    if args.cuda and not torch.cuda.is_available():
+        LOGGER.error("--cuda specified but no GPUs available")
+        sys.exit(1)
 
     # Initialize random
     init_seed(args.seed)

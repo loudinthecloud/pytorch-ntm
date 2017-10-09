@@ -49,10 +49,10 @@ class NTM(nn.Module):
         self.fc = nn.Linear(self.controller_size + self.num_read_heads * self.M, num_outputs)
         self.reset_parameters()
 
-    def create_new_state(self, batch_size):
+    def create_new_state(self, batch_size, is_cuda=False):
         init_r = [r.clone().repeat(batch_size, 1) for r in self.init_r]
         controller_state = self.controller.create_new_state(batch_size)
-        heads_state = [head.create_new_state(batch_size) for head in self.heads]
+        heads_state = [head.create_new_state(batch_size, is_cuda) for head in self.heads]
 
         return init_r, controller_state, heads_state
 

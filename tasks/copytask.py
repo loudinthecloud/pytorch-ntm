@@ -4,7 +4,6 @@ import random
 from attr import attrs, attrib, Factory
 import torch
 from torch import nn
-from torch.autograd import Variable
 from torch import optim
 import numpy as np
 
@@ -38,10 +37,10 @@ def dataloader(num_batches,
         # All batches have the same sequence length
         seq_len = random.randint(min_len, max_len)
         seq = np.random.binomial(1, 0.5, (seq_len, batch_size, seq_width))
-        seq = Variable(torch.from_numpy(seq))
+        seq = torch.from_numpy(seq)
 
         # The input includes an additional channel used for the delimiter
-        inp = Variable(torch.zeros(seq_len + 1, batch_size, seq_width + 1))
+        inp = torch.zeros(seq_len + 1, batch_size, seq_width + 1)
         inp[:seq_len, :, :seq_width] = seq
         inp[seq_len, :, seq_width] = 1.0 # delimiter in our control channel
         outp = seq.clone()
@@ -85,6 +84,7 @@ class CopyTaskParams(object):
 @attrs
 class CopyTaskModelTraining(object):
     params = attrib(default=Factory(CopyTaskParams))
+    cuda = attrib(default=False)
     net = attrib()
     dataloader = attrib()
     criterion = attrib()
@@ -97,7 +97,12 @@ class CopyTaskModelTraining(object):
         net = EncapsulatedNTM(self.params.sequence_width + 1, self.params.sequence_width,
                               self.params.controller_size, self.params.controller_layers,
                               self.params.num_heads,
-                              self.params.memory_n, self.params.memory_m)
+                              self.params.memory_n, self.params.memory_m,
+                              self.cuda)
+
+        if self.cuda:
+            net.cuda()
+
         return net
 
     @dataloader.default
@@ -108,11 +113,17 @@ class CopyTaskModelTraining(object):
 
     @criterion.default
     def default_criterion(self):
-        return nn.BCELoss()
+        criterion = nn.BCELoss()
+        if self.cuda:
+            criterion = criterion.cuda()
+
+        return criterion
 
     @optimizer.default
     def default_optimizer(self):
-        return optim.RMSprop(self.net.parameters(),
-                             momentum=self.params.rmsprop_momentum,
-                             alpha=self.params.rmsprop_alpha,
-                             lr=self.params.rmsprop_lr)
+        optimizer = optim.RMSprop(self.net.parameters(),
+                                  momentum=self.params.rmsprop_momentum,
+                                  alpha=self.params.rmsprop_alpha,
+                                  lr=self.params.rmsprop_lr)
+
+        return optimizer
