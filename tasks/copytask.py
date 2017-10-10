@@ -48,73 +48,6 @@ def dataloader(num_batches,
         yield batch_num+1, inp.float(), outp.float()
 
 
-def train_batch(net, criterion, optimizer, X, Y):
-    """Trains a single batch."""
-    optimizer.zero_grad()
-    seq_len, batch_size, _ = Y.size()
-
-    # New sequence
-    net.init_sequence(batch_size)
-
-    # Feed the sequence + delimiter
-    for i in range(seq_len+1):
-        net(X[i])
-
-    # Read the output (no input given)
-    y_out = Variable(torch.zeros(Y.size()))
-    for i in range(seq_len):
-        y_out[i], _ = net()
-
-    loss = criterion(y_out, Y)
-    loss.backward()
-    optimizer.step()
-
-    y_out_binarized = y_out.clone().data
-    y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
-
-    # The cost is the number of error bits per sequence
-    cost = torch.sum(torch.abs(y_out_binarized - Y.data))
-
-    return loss.data[0], cost / batch_size
-
-
-def evaluate(net, criterion, X, Y):
-    """Evaluate a single batch (without training)."""
-    seq_len, batch_size, _ = Y.size()
-
-    # New sequence
-    net.init_sequence(batch_size)
-
-    # Feed the sequence + delimiter
-    for i in range(seq_len+1):
-        o, _ = net(X[i])
-
-    # Read the output (no input given)
-    states = []
-    y_out = Variable(torch.zeros(Y.size()))
-    for i in range(seq_len):
-        y_out[i], state = net()
-        states += [state]
-
-    loss = criterion(y_out, Y)
-
-    y_out_binarized = y_out.clone().data
-    y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
-
-    # The cost is the number of error bits per sequence
-    cost = torch.sum(torch.abs(y_out_binarized - Y.data))
-
-    result = {
-        'loss': loss.data[0],
-        'cost': cost / batch_size,
-        'y_out': y_out,
-        'y_out_binarized': y_out_binarized,
-        'states': states
-    }
-
-    return result
-
-
 @attrs
 class CopyTaskParams(object):
     name = attrib(default="copy-task")
@@ -151,8 +84,6 @@ class CopyTaskParams(object):
 @attrs
 class CopyTaskModelTraining(object):
     params = attrib(default=Factory(CopyTaskParams))
-    train_batch = attrib(default=train_batch)
-    evaluate = attrib(default=evaluate)
     net = attrib()
     dataloader = attrib()
     criterion = attrib()

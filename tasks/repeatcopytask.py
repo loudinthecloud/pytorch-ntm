@@ -70,83 +70,6 @@ def dataloader(num_batches,
         yield batch_num+1, inp.float(), outp.float()
 
 
-def clip_grads(net):
-    parameters = list(filter(lambda p: p.grad is not None, net.parameters()))
-    for p in parameters:
-        p.grad.data.clamp_(-10, 10)
-
-
-def train_batch(net, criterion, optimizer, X, Y):
-    """Trains a single batch."""
-    optimizer.zero_grad()
-    inp_seq_len = X.size(0)
-    outp_seq_len, batch_size, _ = Y.size()
-
-    # New sequence
-    net.init_sequence(batch_size)
-
-    # Feed the sequence + delimiter
-    for i in range(inp_seq_len):
-        net(X[i])
-
-    # Read the output (no input given)
-    y_out = Variable(torch.zeros(Y.size()))
-    for i in range(outp_seq_len):
-        y_out[i], _ = net()
-
-    loss = criterion(y_out, Y)
-    loss.backward()
-    clip_grads(net)
-    optimizer.step()
-
-    y_out_binarized = y_out.clone().data
-    y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
-
-    # The cost is the number of error bits per sequence
-    cost = torch.sum(torch.abs(y_out_binarized - Y.data))
-
-    return loss.data[0], cost / batch_size
-
-
-def evaluate(net, criterion, X, Y):
-    """Evaluate a single batch (without training)."""
-    inp_seq_len = X.size(0)
-    outp_seq_len, batch_size, _ = Y.size()
-
-    # New sequence
-    net.init_sequence(batch_size)
-
-    # Feed the sequence + delimiter
-    states = []
-    for i in range(inp_seq_len):
-        o, state = net(X[i])
-        states += [state]
-
-    # Read the output (no input given)
-    y_out = Variable(torch.zeros(Y.size()))
-    for i in range(outp_seq_len):
-        y_out[i], state = net()
-        states += [state]
-
-    loss = criterion(y_out, Y)
-
-    y_out_binarized = y_out.clone().data
-    y_out_binarized.apply_(lambda x: 0 if x < 0.5 else 1)
-
-    # The cost is the number of error bits per sequence
-    cost = torch.sum(torch.abs(y_out_binarized - Y.data))
-
-    result = {
-        'loss': loss.data[0],
-        'cost': cost / batch_size,
-        'y_out': y_out,
-        'y_out_binarized': y_out_binarized,
-        'states': states
-    }
-
-    return result
-
-
 @attrs
 class RepeatCopyTaskParams(object):
     name = attrib(default="repeat-copy-task")
@@ -170,8 +93,6 @@ class RepeatCopyTaskParams(object):
 @attrs
 class RepeatCopyTaskModelTraining(object):
     params = attrib(default=Factory(RepeatCopyTaskParams))
-    train_batch = attrib(default=train_batch)
-    evaluate = attrib(default=evaluate)
     net = attrib()
     dataloader = attrib()
     criterion = attrib()
