@@ -1,10 +1,11 @@
 """Copy Task NTM model."""
+import random
+
 from attr import attrs, attrib, Factory
 import torch
 from torch import nn
 from torch.autograd import Variable
 from torch import optim
-import random
 import numpy as np
 
 from ntm.aio import EncapsulatedNTM

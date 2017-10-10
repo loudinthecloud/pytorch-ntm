@@ -208,7 +208,8 @@ def init_arguments():
     parser.add_argument('-p', '--param', action='append', default=[],
                         help='Override model params. Example: "-pbatch_size=4 -pnum_heads=2"')
     parser.add_argument('--checkpoint-interval', type=int, default=CHECKPOINT_INTERVAL,
-                        help="Checkpoint interval (default: {}). Use 0 to disable checkpointing".format(CHECKPOINT_INTERVAL))
+                        help="Checkpoint interval (default: {}). "
+                             "Use 0 to disable checkpointing".format(CHECKPOINT_INTERVAL))
     parser.add_argument('--checkpoint-path', action='store', default='./',
                         help="Path for saving checkpoint data (default: './')")
     parser.add_argument('--report-interval', type=int, default=REPORT_INTERVAL,
