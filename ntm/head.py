@@ -1,4 +1,4 @@
-"""NTM Read/Write Head."""
+"""NTM Read and Write Heads."""
 import torch
 from torch import nn
 from torch.autograd import Variable
@@ -34,7 +34,7 @@ class NTMHeadBase(nn.Module):
     def create_new_state(self, batch_size):
         raise NotImplementedError
 
-    def init_weights(self):
+    def register_parameters(self):
         raise NotImplementedError
 
     def is_read_head(self):
