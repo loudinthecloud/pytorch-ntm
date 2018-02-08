@@ -45,7 +45,7 @@ class NTMHeadBase(nn.Module):
         k = k.clone()
         β = F.softplus(β)
         g = F.sigmoid(g)
-        s = F.softmax(F.softplus(s))
+        s = F.softmax(F.softplus(s), dim=0)
         γ = 1 + F.softplus(γ)
 
         w = self.memory.address(k, β, g, s, γ, w_prev)

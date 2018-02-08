@@ -32,8 +32,7 @@ class NTMMemory(nn.Module):
 
         # The memory bias allows the heads to learn how to initially address
         # memory locations by content
-        self.mem_bias = Variable(torch.Tensor(N, M))
-        self.register_buffer('mem_bias', self.mem_bias.data)
+        self.register_buffer('mem_bias', Variable(torch.Tensor(N, M)))
 
         # Initialize memory bias
         stdev = 1 / (np.sqrt(N + M))
@@ -84,7 +83,7 @@ class NTMMemory(nn.Module):
 
     def _similarity(self, k, β):
         k = k.view(self.batch_size, 1, -1)
-        w = F.softmax(β * F.cosine_similarity(self.memory + 1e-16, k + 1e-16, dim=-1))
+        w = F.softmax(β * F.cosine_similarity(self.memory + 1e-16, k + 1e-16, dim=-1), dim=0)
         return w
 
     def _interpolate(self, w_prev, wc, g):
