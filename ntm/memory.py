@@ -83,7 +83,7 @@ class NTMMemory(nn.Module):
 
     def _similarity(self, k, β):
         k = k.view(self.batch_size, 1, -1)
-        w = F.softmax(β * F.cosine_similarity(self.memory + 1e-16, k + 1e-16, dim=-1), dim=0)
+        w = F.softmax(β * F.cosine_similarity(self.memory + 1e-16, k + 1e-16, dim=-1), dim=1)
         return w
 
     def _interpolate(self, w_prev, wc, g):
