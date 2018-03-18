@@ -12,7 +12,7 @@ class NTM(nn.Module):
 
         :param num_inputs: External input size.
         :param num_outputs: External output size.
-        :param controller: :class:`LSTMController`
+        :param controller: :class:`LSTMController`\`FFWController`
         :param memory: :class:`NTMMemory`
         :param heads: list of :class:`NTMReadHead` or :class:`NTMWriteHead`
 

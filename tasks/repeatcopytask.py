@@ -105,7 +105,7 @@ class RepeatCopyTaskModelTraining(object):
         net = EncapsulatedNTM(self.params.sequence_width + 2, self.params.sequence_width + 1,
                               self.params.controller_size, self.params.controller_layers,
                               self.params.num_heads,
-                              self.params.memory_n, self.params.memory_m)
+                              self.params.memory_n, self.params.memory_m, self.params.controller_type)
         return net
 
     @dataloader.default
