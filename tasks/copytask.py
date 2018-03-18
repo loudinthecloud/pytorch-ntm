@@ -54,6 +54,7 @@ class CopyTaskParams(object):
     name = attrib(default="copy-task")
     controller_size = attrib(default=100, convert=int)
     controller_layers = attrib(default=1,convert=int)
+    controller_type = attrib(default='LSTM', convert=str)
     num_heads = attrib(default=1, convert=int)
     sequence_width = attrib(default=8, convert=int)
     sequence_min_len = attrib(default=1,convert=int)
@@ -97,7 +98,7 @@ class CopyTaskModelTraining(object):
         net = EncapsulatedNTM(self.params.sequence_width + 1, self.params.sequence_width,
                               self.params.controller_size, self.params.controller_layers,
                               self.params.num_heads,
-                              self.params.memory_n, self.params.memory_m)
+                              self.params.memory_n, self.params.memory_m, self.params.controller_type)
         return net
 
     @dataloader.default
