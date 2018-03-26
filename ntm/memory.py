@@ -9,9 +9,9 @@ import numpy as np
 def _convolve(w, s):
     """Circular convolution implementation."""
     assert s.size(0) == 3
-    t = torch.cat([w[-2:], w, w[:2]])
+    t = torch.cat([w[-1:], w, w[:1]])
     c = F.conv1d(t.view(1, 1, -1), s.view(1, 1, -1)).view(-1)
-    return c[1:-1]
+    return c
 
 
 class NTMMemory(nn.Module):
