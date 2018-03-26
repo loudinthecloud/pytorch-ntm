@@ -54,10 +54,9 @@ class NTMMemory(nn.Module):
         """write to memory (according to section 3.2)."""
         self.prev_mem = self.memory
         self.memory = Variable(torch.Tensor(self.batch_size, self.N, self.M))
-        for b in range(self.batch_size):
-            erase = torch.ger(w[b], e[b])
-            add = torch.ger(w[b], a[b])
-            self.memory[b] = self.prev_mem[b] * (1 - erase) + add
+        erase = torch.matmul(w.unsqueeze(-1), e.unsqueeze(1))
+        add = torch.matmul(w.unsqueeze(-1), a.unsqueeze(1))
+        self.memory = self.prev_mem * (1 - erase) + add
 
     def address(self, k, β, g, s, γ, w_prev):
         """NTM Addressing (according to section 3.3).
