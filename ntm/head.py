@@ -1,7 +1,6 @@
 """NTM Read and Write Heads."""
 import torch
 from torch import nn
-from torch.autograd import Variable
 import torch.nn.functional as F
 import numpy as np
 
@@ -64,12 +63,12 @@ class NTMReadHead(NTMHeadBase):
 
     def create_new_state(self, batch_size):
         # The state holds the previous time step address weightings
-        return Variable(torch.zeros(batch_size, self.N))
+        return torch.zeros(batch_size, self.N)
 
     def reset_parameters(self):
         # Initialize the linear layers
-        nn.init.xavier_uniform(self.fc_read.weight, gain=1.4)
-        nn.init.normal(self.fc_read.bias, std=0.01)
+        nn.init.xavier_uniform_(self.fc_read.weight, gain=1.4)
+        nn.init.normal_(self.fc_read.bias, std=0.01)
 
     def is_read_head(self):
         return True
@@ -100,12 +99,12 @@ class NTMWriteHead(NTMHeadBase):
         self.reset_parameters()
 
     def create_new_state(self, batch_size):
-        return Variable(torch.zeros(batch_size, self.N))
+        return torch.zeros(batch_size, self.N)
 
     def reset_parameters(self):
         # Initialize the linear layers
-        nn.init.xavier_uniform(self.fc_write.weight, gain=1.4)
-        nn.init.normal(self.fc_write.bias, std=0.01)
+        nn.init.xavier_uniform_(self.fc_write.weight, gain=1.4)
+        nn.init.normal_(self.fc_write.bias, std=0.01)
 
     def is_read_head(self):
         return False

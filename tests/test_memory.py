@@ -1,10 +1,9 @@
 import pytest
 import torch
-from torch.autograd import Variable
 from ntm.memory import NTMMemory
 
 def _t(*l):
-    return Variable(torch.Tensor(l)).unsqueeze(0)
+    return torch.Tensor(l).unsqueeze(0)
 
 class TestMemoryReadWrite:
     N = 4
