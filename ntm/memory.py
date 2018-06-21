@@ -1,6 +1,5 @@
 """An NTM's memory implementation."""
 import torch
-from torch.autograd import Variable
 import torch.nn.functional as F
 from torch import nn
 import numpy as np
@@ -32,11 +31,11 @@ class NTMMemory(nn.Module):
 
         # The memory bias allows the heads to learn how to initially address
         # memory locations by content
-        self.register_buffer('mem_bias', Variable(torch.Tensor(N, M)))
+        self.register_buffer('mem_bias', torch.Tensor(N, M))
 
         # Initialize memory bias
         stdev = 1 / (np.sqrt(N + M))
-        nn.init.uniform(self.mem_bias, -stdev, stdev)
+        nn.init.uniform_(self.mem_bias, -stdev, stdev)
 
     def reset(self, batch_size):
         """Initialize memory from bias, for start-of-sequence."""
@@ -53,7 +52,7 @@ class NTMMemory(nn.Module):
     def write(self, w, e, a):
         """write to memory (according to section 3.2)."""
         self.prev_mem = self.memory
-        self.memory = Variable(torch.Tensor(self.batch_size, self.N, self.M))
+        self.memory = torch.Tensor(self.batch_size, self.N, self.M)
         erase = torch.matmul(w.unsqueeze(-1), e.unsqueeze(1))
         add = torch.matmul(w.unsqueeze(-1), a.unsqueeze(1))
         self.memory = self.prev_mem * (1 - erase) + add
@@ -89,7 +88,7 @@ class NTMMemory(nn.Module):
         return g * wc + (1 - g) * w_prev
 
     def _shift(self, wg, s):
-        result = Variable(torch.zeros(wg.size()))
+        result = torch.zeros(wg.size())
         for b in range(self.batch_size):
             result[b] = _convolve(wg[b], s[b])
         return result

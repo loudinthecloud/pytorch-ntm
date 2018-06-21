@@ -13,7 +13,6 @@ import sys
 import attr
 import argcomplete
 import torch
-from torch.autograd import Variable
 import numpy as np
 
 
@@ -104,7 +103,7 @@ def train_batch(net, criterion, optimizer, X, Y):
         net(X[i])
 
     # Read the output (no input given)
-    y_out = Variable(torch.zeros(Y.size()))
+    y_out = torch.zeros(Y.size())
     for i in range(outp_seq_len):
         y_out[i], _ = net()
 
@@ -119,7 +118,7 @@ def train_batch(net, criterion, optimizer, X, Y):
     # The cost is the number of error bits per sequence
     cost = torch.sum(torch.abs(y_out_binarized - Y.data))
 
-    return loss.data[0], cost / batch_size
+    return loss.item(), cost / batch_size
 
 
 def evaluate(net, criterion, X, Y):
@@ -137,7 +136,7 @@ def evaluate(net, criterion, X, Y):
         states += [state]
 
     # Read the output (no input given)
-    y_out = Variable(torch.zeros(Y.size()))
+    y_out = torch.zeros(Y.size())
     for i in range(outp_seq_len):
         y_out[i], state = net()
         states += [state]

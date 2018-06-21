@@ -4,7 +4,6 @@ import random
 from attr import attrs, attrib, Factory
 import torch
 from torch import nn
-from torch.autograd import Variable
 from torch import optim
 import numpy as np
 
@@ -55,16 +54,16 @@ def dataloader(num_batches,
 
         # Generate the sequence
         seq = np.random.binomial(1, 0.5, (seq_len, batch_size, seq_width))
-        seq = Variable(torch.from_numpy(seq))
+        seq = torch.from_numpy(seq)
 
         # The input includes 2 additional channels, for end-of-sequence and num-reps
-        inp = Variable(torch.zeros(seq_len + 2, batch_size, seq_width + 2))
+        inp = torch.zeros(seq_len + 2, batch_size, seq_width + 2)
         inp[:seq_len, :, :seq_width] = seq
         inp[seq_len, :, seq_width] = 1.0
         inp[seq_len+1, :, seq_width+1] = rpt_normalize(reps)
 
         # The output contain the repeated sequence + end marker
-        outp = Variable(torch.zeros(seq_len * reps + 1, batch_size, seq_width + 1))
+        outp = torch.zeros(seq_len * reps + 1, batch_size, seq_width + 1)
         outp[:seq_len * reps, :, :seq_width] = seq.clone().repeat(reps, 1, 1)
         outp[seq_len * reps, :, seq_width] = 1.0 # End marker
 
