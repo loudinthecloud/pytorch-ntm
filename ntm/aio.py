@@ -1,8 +1,6 @@
 """All in one NTM. Encapsulation of all components."""
 import torch
 from torch import nn
-from torch.autograd import Variable
-
 from .ntm import NTM
 from .controller import LSTMController
 from .head import NTMReadHead, NTMWriteHead
@@ -55,7 +53,7 @@ class EncapsulatedNTM(nn.Module):
 
     def forward(self, x=None):
         if x is None:
-            x = Variable(torch.zeros(self.batch_size, self.num_inputs))
+            x = torch.zeros(self.batch_size, self.num_inputs)
 
         o, self.previous_state = self.ntm(x, self.previous_state)
         return o, self.previous_state
